@@ -3,6 +3,12 @@
 
 ![image info](./RabbitMQ-Walkthrough-v1.png)
 
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=dAsJn_HDi6U">
+    <img width="640" height="360" src="https://j.gifs.com/r22qEL.gif">
+  </a>
+</p>
+
 # RabbitMQ-Walkthrough
 
 RabbitMQ - Demonstração de Comportamento padrão com Mensageria.
@@ -10,33 +16,35 @@ RabbitMQ - Demonstração de Comportamento padrão com Mensageria.
 **Material complementar dos cursos:**
 
  - [RabbitMQ para Aplicações .NET](https://lp.gago.io/rabbitmq) 
- - [Docker Definitivo / O ROADMAP](http://dockerdefinitivo.com/)
+ - [Cloud Native .NET](http://cloudnative.net.br/)
   
 ## Objetivo
 
-1) Demonstrar comportamento padrão quando:
-A) Temos uma carga de trabalho menor que nossa capacidade de processamento
-B) Temos uma carga de trabalho igual à nossa capacidade de processamento 
-B) Temos uma carga de trabalho maior que nossa capacidade de processamento 
+### 1) Demonstrar comportamento padrão quando:
 
-2) Nesses casos:
-A) Como as filas acumulam mensagens?
-B) Como o tempo médio até o processamento é influenciado?
-C) Como lidamos com escala?
+- A) Temos uma carga de trabalho menor que nossa capacidade de processamento
+- B) Temos uma carga de trabalho igual à nossa capacidade de processamento 
+- C) Temos uma carga de trabalho maior que nossa capacidade de processamento 
 
-3) Nesse exemplo conseguimos demonstrar:
-A) Disponibilidade
-B) Eficiência
-C) Resiliência
-D) Confiabilidade
-C) Escalabilidade
-E) Idempotência e porque precisamos dela, quando ela faz mais sentido em cenários assíncronos.
+### 2) Nesses casos:
+- A) Como as filas acumulam mensagens?
+- B) Como o tempo médio até o processamento é influenciado?
+- C) Como lidamos com escala?
+
+### 3) Nesse exemplo conseguimos demonstrar:
+- A) Disponibilidade
+- B) Eficiência
+- C) Resiliência
+- D) Confiabilidade
+- C) Escalabilidade
+- E) Idempotência e porque precisamos dela, quando ela faz mais sentido em cenários assíncronos.
 
 ## Decisões técnicas
 
 Todas as decisões técnicas forma tomadas com base nos objetivos da aplicação. 
 Tirar de contexto pode e provavelmente fará  fazer com que você falhe.
 Copiar código para colocar em produção pode te custar muito caro, pois as decisões tomadas aqui tem função didática.
+Até as senhas e credenciais estão em hard code propositalmente, para que não sejam alteradas pois há dependências que não estão configuradas para rodar de forma diferente, como por exemplo a conexão com do Grafana com o SQL Server.
 
 ## Sobre a discrepância entre Throughput solicitado vs Throughput real
 
@@ -63,13 +71,13 @@ Esse repositório está distribuído em diverso locais. Cada um com uma finalida
 
 #### Alunos RabbitMQ para Aplicações .NET
 
-https://github.com/luizcarlosfaria-rabbitmq-masterclass/RabbitMQ-Walkthrough.git
+https://github.com/luizcarlosfaria-rabbitmq/RabbitMQ-Walkthrough.git
 
 Nosso foco aqui é entender RabbitMQ e seu uso.
 
-#### Alunos Docker Definitivo / O Roadmap
+#### Alunos Cloud Native .NET
 
-https://github.com/docker-definitivo/RabbitMQ-Walkthrough.git
+https://github.com/cloudnative-net-br/RabbitMQ-Walkthrough.git
 
 Nosso objetivo é entender RabbitMQ, entender algumas decisões arquiteturais e o motivo de algumas escolhas.
 
@@ -100,16 +108,16 @@ Uso geral de acordo com a licença.
 - RabbitMQ 
     - Imagem: rabbitmq:3.9.1-management-alpine
     - Single Node
-    - Com ar
-
-- Grafana
-    - Imagem: grafana/grafana:8.0.5-ubuntu
-    - Single Node
     - Pré configurado
       -  Habilitando métricas por objeto no prometheus
       -  Habilitando coleta de métricas a cada 1 segundo (antipattern para produção)
       -  Habilitnado modo de coleta de métricas detalhado  (antipattern para produção)
       -  Definição de usuário e virtual host defaults.
+
+- Grafana
+    - Imagem: grafana/grafana:8.0.5-ubuntu
+    - Single Node
+    - Pré configurado com Dashboard padrão para apresentar dados do SQL Server
 
 Como usar:
 

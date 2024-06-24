@@ -1,5 +1,6 @@
 ﻿using Dapper;
 using Microsoft.Extensions.Logging;
+using Npgsql;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using RabbitMQWalkthrough.Core.Infrastructure;
@@ -21,7 +22,7 @@ namespace RabbitMQWalkthrough.Core.Infrastructure.Queue
         private readonly IModel model;
         private readonly IConnection connection;
         private readonly ILogger<Consumer> logger;
-        private readonly SqlConnection sqlConnection;
+        private readonly NpgsqlConnection sqlConnection;
         private readonly MessageDataService messageDataService;
         private string queue;
         private EventingBasicConsumer eventingBasicConsumer;
@@ -33,7 +34,7 @@ namespace RabbitMQWalkthrough.Core.Infrastructure.Queue
 
         public string Id { get; }
 
-        public Consumer(IModel model, IConnection connection, ILogger<Consumer> logger, SqlConnection sqlConnection, MessageDataService messageDataService)
+        public Consumer(IModel model, IConnection connection, ILogger<Consumer> logger, NpgsqlConnection sqlConnection, MessageDataService messageDataService)
         {
             this.model = model;
             this.connection = connection;
@@ -54,14 +55,15 @@ namespace RabbitMQWalkthrough.Core.Infrastructure.Queue
         }
 
 
-        private void OnMessage(object sender, BasicDeliverEventArgs e)
+        private void OnMessage(object sender, BasicDeliverEventArgs eventArgs)
         {
+            //Thread.Sleep(TimeSpan.FromSeconds(2));
 
             if (this.isRunning == false)
             {
                 if (this.model.IsOpen)
                 {
-                    this.model.BasicReject(e.DeliveryTag, true);
+                    this.model.BasicReject(eventArgs.DeliveryTag, true);
                     this.logger.LogInformation("Mensagem sofreu rejeição leve em função do desligamento do consumidor");
                 }
                 return;
@@ -73,29 +75,32 @@ namespace RabbitMQWalkthrough.Core.Infrastructure.Queue
 
             try
             {
-                message = e.Body.ToArray().ToUTF8String().Deserialize<Message>();
+                message = eventArgs.Body.ToArray().ToUTF8String().Deserialize<Message>();
             }
             catch (Exception ex)
             {
                 if (this.model.IsOpen)
                 {
-                    this.model.BasicReject(e.DeliveryTag, false);
+                    this.model.BasicReject(eventArgs.DeliveryTag, false);
                     this.logger.LogError(ex, "Mensagem sofreu uma rejeição grave em função de um erro na desserialização. A mensagem será descartada");
                 }
                 return;
             }
 
-            using (var sqlTransaction = this.sqlConnection.BeginTransaction())
+
+            if (this.isRunning)
             {
+                using var sqlTransaction = this.sqlConnection.BeginTransaction();
                 try
                 {
                     if (this.isRunning)
                     {
                         this.messageDataService.MarkAsProcessed(message, this.sqlConnection, sqlTransaction);
+
                         if (this.isRunning)
                         {
-                            this.model.BasicAck(e.DeliveryTag, false);
                             sqlTransaction.Commit();
+                            this.model.BasicAck(eventArgs.DeliveryTag, false);
                         }
                         else
                         {
@@ -106,7 +111,7 @@ namespace RabbitMQWalkthrough.Core.Infrastructure.Queue
                     {
                         if (this.model.IsOpen)
                         {
-                            this.model.BasicReject(e.DeliveryTag, true);
+                            this.model.BasicReject(eventArgs.DeliveryTag, true);
                             this.logger.LogInformation("Mensagem sofreu rejeição leve em função do desligamento do consumidor");
                         }
                         sqlTransaction.Rollback();
@@ -116,11 +121,17 @@ namespace RabbitMQWalkthrough.Core.Infrastructure.Queue
                 {
                     if (this.model.IsOpen)
                     {
-                        this.model.BasicNack(e.DeliveryTag, false, true);
+                        this.model.BasicNack(eventArgs.DeliveryTag, false, true);
                         this.logger.LogError(ex, "Mensagem foi reenfileirada para processamento futuro, o consumidor atual não conseguiu processá-la.");
                     }
-                    sqlTransaction.Rollback();
+
+                    if (sqlTransaction.Connection != null)
+                        sqlTransaction.Rollback();
                 }
+            }
+            else
+            {
+                if (this.model.IsOpen) this.model.BasicReject(eventArgs.DeliveryTag, true);
             }
         }
 

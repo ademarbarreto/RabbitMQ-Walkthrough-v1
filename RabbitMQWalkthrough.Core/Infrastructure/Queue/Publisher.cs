@@ -1,6 +1,7 @@
 ﻿
 using Dapper;
 using Microsoft.Extensions.Logging;
+using Npgsql;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using RabbitMQWalkthrough.Core.Infrastructure;
@@ -26,7 +27,7 @@ namespace RabbitMQWalkthrough.Core.Infrastructure.Queue
     {
         private readonly IModel model;
         private readonly IConnection rabbitMqConnection;
-        private readonly SqlConnection sqlConnection;
+        private readonly NpgsqlConnection sqlConnection;
         private readonly MessageDataService messageDataService;
         private readonly ILogger<Publisher> logger;
         private string exchange;
@@ -40,7 +41,7 @@ namespace RabbitMQWalkthrough.Core.Infrastructure.Queue
 
         public string Id { get; }
 
-        public Publisher(IModel model, IConnection rabbitMqConnection, SqlConnection sqlConnection, MessageDataService messageDataService, ILogger<Publisher> logger)
+        public Publisher(IModel model, IConnection rabbitMqConnection, NpgsqlConnection sqlConnection, MessageDataService messageDataService, ILogger<Publisher> logger)
         {
             this.model = model;
             this.rabbitMqConnection = rabbitMqConnection;
@@ -62,7 +63,7 @@ namespace RabbitMQWalkthrough.Core.Infrastructure.Queue
 
         private void HandlePublish()
         {
-            this.model.ConfirmSelect(); //Ack na publicação.
+            //this.model.ConfirmSelect(); //Ack na publicação.
 
             long count = 0;
             while (this.isRunning)
@@ -76,6 +77,8 @@ namespace RabbitMQWalkthrough.Core.Infrastructure.Queue
                 using var transaction = this.sqlConnection.BeginTransaction();
                 try
                 {
+                    //Thread.Sleep(TimeSpan.FromMilliseconds(100));
+
                     /*Aqui deveria chamar alguma camada de negócio*/
                     Message message = this.messageDataService.CreateMessage(transaction, this.sqlConnection);
                     //fim
@@ -84,10 +87,10 @@ namespace RabbitMQWalkthrough.Core.Infrastructure.Queue
                         exchange: this.exchange,
                         routingKey: string.Empty,
                         mandatory: true,
-                        basicProperties: this.model.CreatePersistentBasicProperties(), //Extension Method para criar um basic properties com persistência
+                        basicProperties: this.model.CreatePersistentBasicProperties().SetMessageId(Guid.NewGuid().ToString("D")), //Extension Method para criar um basic properties com persistência
                         body: message.Serialize().ToByteArray().ToReadOnlyMemory()); //Extension Method para simplificar a publicação
 
-                    this.model.WaitForConfirmsOrDie(TimeSpan.FromSeconds(5)); //Ack na publicação.
+                    //this.model.WaitForConfirmsOrDie(TimeSpan.FromSeconds(5)); //Ack na publicação.
 
                     transaction.Commit();
                 }
